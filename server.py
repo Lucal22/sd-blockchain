@@ -6,7 +6,7 @@ from uuid import uuid4
 from flask import Flask, jsonify, request
 
 class Blockchain:
-    def __init__(self):
+    def __init__(self, other_nodes):
         self.current_transactions = []
         self.chain = []
         self.nodes = set()
@@ -14,6 +14,9 @@ class Blockchain:
         # Create the genesis block
         self.new_block(previous_hash=1, proof=100)
 
+        for node in other_nodes:
+            self.nodes.add(node)
+    
     def register_node(self, node):
         self.nodes.add(node)
 
@@ -144,9 +147,8 @@ app = Flask(__name__)
 node_identifier = str(uuid4()).replace('-', '')
 
 # Instantiate the Blockchain
-blockchain = Blockchain()
+blockchain = Blockchain(['localhost:5002','localhost:5001'])
 
-@app.route('/mine', methods=['GET'])
 def mine():
     # We run the proof of work algorithm to get the next proof...
     last_block = blockchain.last_block
@@ -176,17 +178,16 @@ def mine():
 @app.route('/transactions/new', methods=['POST'])
 def new_transaction():
     values = request.get_json()
-
+    
     # Check that the required fields are in the POST'ed data
     required = ['sender', 'recipient', 'amount']
     if not all(k in values for k in required):
         return 'Missing values', 400
 
     # Create a new Transaction
-    index = blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
+    blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
 
-    response = {'message': f'Transaction will be added to Block {index}'}
-    return jsonify(response), 201
+    return mine()
 
 @app.route('/chain', methods=['GET'])
 def full_chain():
@@ -199,7 +200,6 @@ def full_chain():
 @app.route('/nodes/register', methods=['POST'])
 def register_nodes():
     values = request.get_json()
-
     nodes = values.get('nodes')
     if nodes is None:
         return "Error: Please supply a valid list of nodes", 400
@@ -231,4 +231,4 @@ def consensus():
     return jsonify(response), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5000)
