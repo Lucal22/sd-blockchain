@@ -5,6 +5,7 @@ from time import time
 from urllib import request
 from uuid import uuid4
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import requests
 
 class Blockchain:
@@ -151,6 +152,9 @@ except:
     nodes = ['localhost:5000']
 app = Flask(__name__)
 
+# Enable CORS for all routes
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 # Generate a globally unique address for this node
 node_identifier = str(uuid4()).replace('-', '')
 
@@ -186,6 +190,13 @@ def mine():
     previous_hash = blockchain.hash(last_block)
     block = blockchain.new_block(proof, previous_hash)
     block_push(block)
+    
+    # Trigger consensus on all nodes to synchronize the chain
+    for node in blockchain.nodes:
+        try:
+            requests.get(f'http://{node}/nodes/resolve', timeout=2)
+        except requests.exceptions.RequestException:
+            pass
 
     response = {
         'message': "New Block Forged",
@@ -207,7 +218,7 @@ def new_transaction():
 
     # Create a new Transaction
     blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
-    
+
     return mine()
 
 @app.route('/chain', methods=['GET'])
@@ -265,7 +276,7 @@ def receive_block():
         return jsonify({'message': 'Block added'}), 201
 
     blockchain.resolve_conflicts()
-    return jsonify({'message': 'Conflict detected'}), 409
+    return jsonify({'message': 'Block rejected, consensus triggered'}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
