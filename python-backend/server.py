@@ -157,6 +157,17 @@ node_identifier = str(uuid4()).replace('-', '')
 # Instantiate the Blockchain
 blockchain = Blockchain(nodes)
 
+def block_push(block):
+    for node in blockchain.nodes:
+        try:
+            requests.post(
+                f'http://{node}/blocks/push',
+                json=block,
+                timeout=2
+            )
+        except requests.exceptions.RequestException:
+            pass
+
 @app.route('/mine', methods=['GET'])
 def mine():
     # We run the proof of work algorithm to get the next proof...
@@ -174,6 +185,7 @@ def mine():
     # Forge the new Block by adding it to the chain
     previous_hash = blockchain.hash(last_block)
     block = blockchain.new_block(proof, previous_hash)
+    block_push(block)
 
     response = {
         'message': "New Block Forged",
@@ -195,7 +207,7 @@ def new_transaction():
 
     # Create a new Transaction
     blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
-
+    
     return mine()
 
 @app.route('/chain', methods=['GET'])
@@ -238,6 +250,22 @@ def consensus():
         }
 
     return jsonify(response), 200
+
+@app.route('/blocks/push', methods=['POST'])
+def receive_block():
+    block = request.get_json()
+
+    last_block = blockchain.last_block
+
+    if (
+        block['previous_hash'] == blockchain.hash(last_block)
+        and blockchain.valid_proof(last_block['proof'], block['proof'])
+    ):
+        blockchain.chain.append(block)
+        return jsonify({'message': 'Block added'}), 201
+
+    blockchain.resolve_conflicts()
+    return jsonify({'message': 'Conflict detected'}), 409
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port)
