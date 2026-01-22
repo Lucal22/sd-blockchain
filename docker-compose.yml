@@ -1,4 +1,5 @@
 services:
+  # Blockchain Servers
   server1:
     build:
       context: ./python-backend
@@ -8,7 +9,7 @@ services:
       - "5000:5000"
     environment:
       - PORT=5000
-      - NODES=["server2:5001", "server3:5002"]
+      - NODES=["server2:5000", "server3:5000"]
     networks:
       - blockchain_net
 
@@ -18,10 +19,10 @@ services:
       dockerfile: Dockerfile
     container_name: server2
     ports:
-      - "5001:5001"
+      - "5001:5000"
     environment:
-      - PORT=5001
-      - NODES=["server1:5000", "server3:5002"]
+      - PORT=5000
+      - NODES=["server1:5000", "server3:5000"]
     networks:
       - blockchain_net
 
@@ -31,12 +32,58 @@ services:
       dockerfile: Dockerfile
     container_name: server3
     ports:
-      - "5002:5002"
+      - "5002:5000"
     environment:
-      - PORT=5002
-      - NODES=["server1:5000", "server2:5001"]
+      - PORT=5000
+      - NODES=["server1:5000", "server2:5000"]
     networks:
       - blockchain_net
+
+  # Next.js Frontends
+  frontend1:
+    build:
+      context: ./next-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_PORT: 5000
+        PORT: 3000
+    container_name: frontend1
+    ports:
+      - "3000:3000"
+    networks:
+      - blockchain_net
+    depends_on:
+      - server1
+
+  frontend2:
+    build:
+      context: ./next-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_PORT: 5001
+        PORT: 3001
+    container_name: frontend2
+    ports:
+      - "3001:3001"
+    networks:
+      - blockchain_net
+    depends_on:
+      - server2
+
+  frontend3:
+    build:
+      context: ./next-frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_PORT: 5002
+        PORT: 3002
+    container_name: frontend3
+    ports:
+      - "3002:3002"
+    networks:
+      - blockchain_net
+    depends_on:
+      - server3
 
 networks:
   blockchain_net:
