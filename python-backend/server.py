@@ -108,7 +108,7 @@ class Blockchain:
             last_block = block
             current_index += 1
         return True
-    
+
     def resolve_conflicts(self):
         """
         This is our consensus algorithm, it resolves conflicts
@@ -142,16 +142,22 @@ class Blockchain:
         return False
 
 ################### API #########################
-#port = os.getenv("PORT", 5000)
-#nodes = os.getenv("NODES", ['localhost:5000'])
+port = int(os.getenv("PORT", 5000))
+nodes_str = os.getenv("NODES", ['localhost:5000'])
+# Parse nodes from environment variable string
+try:
+    nodes = eval(nodes_str) if isinstance(nodes_str, str) else nodes_str
+except:
+    nodes = ['localhost:5000']
 app = Flask(__name__)
 
 # Generate a globally unique address for this node
 node_identifier = str(uuid4()).replace('-', '')
 
 # Instantiate the Blockchain
-blockchain = Blockchain(['localhost:5001'])
+blockchain = Blockchain(nodes)
 
+@app.route('/mine', methods=['GET'])
 def mine():
     # We run the proof of work algorithm to get the next proof...
     last_block = blockchain.last_block
@@ -234,4 +240,4 @@ def consensus():
     return jsonify(response), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=port)
